@@ -275,9 +275,9 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
     ext_count = 0;
     extern_nodes.resize(word_count * 10);
     //external syntactic features
-    
-
-
+    getExternalFeats(trainInsts, trainFile + ".dump");
+    if (devFile != "")  getExternalFeats(devInsts, devFile + ".dump");
+    if (testFile != "")  getExternalFeats(testInsts, testFile + ".dump");
 
 
     int inputSize = trainInsts.size();
