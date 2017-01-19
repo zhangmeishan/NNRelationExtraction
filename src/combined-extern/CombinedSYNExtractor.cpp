@@ -604,8 +604,11 @@ void Extractor::getExternalFeats(vector<Instance>& vecInsts, const string& folde
     }
 
     std::cout << idx << std::endl;
-
-
+    inf1.close();
+    inf2.close();
+    inf3.close();
+    inf4.close();
+    inf5.close();
 }
 
 int main(int argc, char *argv[]) {
