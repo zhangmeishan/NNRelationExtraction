@@ -19,6 +19,8 @@ public:
 	Driver m_driver;
 	Options m_options;
 	Pipe m_pipe;
+    vector<Node> extern_nodes;
+    int ext_count;
 
 public:
 	int createAlphabet( vector<Instance>& vecInsts);
@@ -30,6 +32,8 @@ public:
 
 	// static training
 	void getGoldActions( vector<Instance>& vecInsts, vector<vector<CAction> >& vecActions);
+
+    void getExternalFeats(vector<Instance>& vecInsts, const string& folder);
 
 
 public:

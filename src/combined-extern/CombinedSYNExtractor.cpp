@@ -1,14 +1,15 @@
-#include "CombinedExtractor.h"
+#include "CombinedSYNExtractor.h"
 #include <set>
-
 #include "Argument_helper.h"
 
 Extractor::Extractor(size_t memsize) : m_driver(memsize) {
     srand(0);
+    ext_count = 0;
 }
 
 
 Extractor::~Extractor() {
+    extern_nodes.clear();
 }
 
 int Extractor::createAlphabet(vector<Instance> &vecInsts) {
@@ -233,10 +234,6 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
     if (testFile != "")
         m_pipe.readInstances(testFile, testInsts, m_options.maxInstance);
 
-    vector<vector<Instance> > otherInsts(m_options.testFiles.size());
-    for (int idx = 0; idx < m_options.testFiles.size(); idx++) {
-        m_pipe.readInstances(m_options.testFiles[idx], otherInsts[idx], m_options.maxInstance);
-    }
 
     createAlphabet(trainInsts);
 
@@ -257,11 +254,31 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
     m_driver._hyperparams.setRequared(m_options);
     m_driver.initial();
 
+
     vector<vector<CAction> > trainInstGoldactions, devInstGoldactions, testInstGoldactions;
     getGoldActions(trainInsts, trainInstGoldactions);
     //getGoldActions(devInsts, devInstGoldactions);
     //getGoldActions(testInsts, testInstGoldactions);
     double bestFmeasure = -1;
+
+    //total word count;
+    int word_count = 0;
+    for (int idx = 0; idx < trainInsts.size(); idx++) {
+        word_count += trainInsts[idx].words.size();
+    }
+    for (int idx = 0; idx < devInsts.size(); idx++) {
+        word_count += devInsts[idx].words.size();
+    }
+    for (int idx = 0; idx < testInsts.size(); idx++) {
+        word_count += testInsts[idx].words.size();
+    }
+    ext_count = 0;
+    extern_nodes.resize(word_count * 10);
+    //external syntactic features
+    getExternalFeats(trainInsts, trainFile + ".dump");
+    if (devFile != "")  getExternalFeats(devInsts, devFile + ".dump");
+    if (testFile != "")  getExternalFeats(testInsts, testFile + ".dump");
+
 
     int inputSize = trainInsts.size();
 
@@ -380,30 +397,6 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
             }
         }
 
-        for (int idx = 0; idx < otherInsts.size(); idx++) {
-            std::cout << "processing " << m_options.testFiles[idx] << std::endl;
-            clock_t time_start = clock();
-            if (!m_options.outBest.empty())
-                decodeInstResults.clear();
-            test_ner.reset(); test_rel.reset();
-            for (int idy = 0; idy < otherInsts[idx].size(); idy++) {
-                predict(otherInsts[idx][idy], curDecodeInst);
-                otherInsts[idx][idy].evaluate(curDecodeInst, test_ner, test_rel);
-                if (bCurIterBetter && !m_options.outBest.empty()) {
-                    decodeInstResults.push_back(curDecodeInst);
-                }
-            }
-            std::cout << m_options.testFiles[idx] << " finished. Total time taken is: " << double(clock() - time_start) / CLOCKS_PER_SEC << std::endl;
-            std::cout << "test:" << std::endl;
-            test_ner.print();
-            test_rel.print();
-
-            if (!m_options.outBest.empty() && bCurIterBetter) {
-                m_pipe.outputAllInstances(m_options.testFiles[idx] + m_options.outBest, decodeInstResults);
-            }
-        }
-
-
         if (m_options.saveIntermediate && dev_rel.getAccuracy() > bestFmeasure) {
             std::cout << "Exceeds best previous DIS of " << bestFmeasure << ". Saving model file.." << std::endl;
             bestFmeasure = dev_rel.getAccuracy();
@@ -428,6 +421,190 @@ void Extractor::loadModelFile(const string &inputModelFile) {
 }
 
 void Extractor::writeModelFile(const string &outputModelFile) {
+
+}
+
+
+void Extractor::getExternalFeats(vector<Instance>& vecInsts, const string& folder) {
+    string file1 = folder + path_separator + "deps.100.hvec";
+    string file2 = folder + path_separator + "head_deps.100.hvec";
+    string file3 = folder + path_separator + "rels.100.hvec";
+    string file4 = folder + path_separator + "head_rels.100.hvec";
+    string file5 = folder + path_separator + "recurs.600.hvec";  //bi-lstm
+
+    ifstream inf1(file1.c_str());
+    ifstream inf2(file2.c_str());
+    ifstream inf3(file3.c_str());
+    ifstream inf4(file4.c_str());
+    ifstream inf5(file5.c_str());
+    string strLine;
+    static vector<string> vecLine1, vecLine2, vecLine3, vecLine4, vecLine5;
+    static vector<string> vecInfo;
+
+    int idx = 0;
+    while (1) {
+        vecLine1.clear();
+        while (1) {
+            if (!my_getline(inf1, strLine)) {
+                break;
+            }
+            if (strLine.empty())
+                break;
+            vecLine1.push_back(strLine);
+        }
+
+        vecLine2.clear();
+        while (1) {
+            if (!my_getline(inf2, strLine)) {
+                break;
+            }
+            if (strLine.empty())
+                break;
+            vecLine2.push_back(strLine);
+        }
+
+        vecLine3.clear();
+        while (1) {
+            if (!my_getline(inf3, strLine)) {
+                break;
+            }
+            if (strLine.empty())
+                break;
+            vecLine3.push_back(strLine);
+        }
+
+        vecLine4.clear();
+        while (1) {
+            if (!my_getline(inf4, strLine)) {
+                break;
+            }
+            if (strLine.empty())
+                break;
+            vecLine4.push_back(strLine);
+        }
+
+        vecLine5.clear();
+        while (1) {
+            if (!my_getline(inf5, strLine)) {
+                break;
+            }
+            if (strLine.empty())
+                break;
+            vecLine5.push_back(strLine);
+        }
+
+        int vec_size = vecLine1.size();
+        if (vec_size == 0) {
+            if (idx != vecInsts.size()) {
+                std::cout << "some instances do not have external features: " << idx << ":" << vecInsts.size() << std::endl;
+            }
+            break;
+        }
+        if (vecLine2.size() != vec_size || vecLine3.size() != vec_size ||
+            vecLine4.size() != vec_size || vecLine5.size() != vec_size) {
+            std::cout << "extern feature input error" << std::endl;
+        }
+
+        if (vecInsts[idx].words.size() != vec_size) {
+            continue;
+        }
+
+        int match_cout = 0;
+        for (int i = 0; i < vec_size; i++) {
+            split_bychar(vecLine1[i], vecInfo, ' ');
+            if (vecInfo[0].compare(vecInsts[idx].words[i]) == 0) {
+                match_cout++;
+            }
+        }
+
+        if ((vec_size < 4 && match_cout != vec_size)
+            || vec_size > match_cout + 2) {
+            continue;
+        }
+
+        for (int i = 0; i < vec_size; i++) {
+            vecInsts[idx].syn_feats[i].resize(6);
+            split_bychar(vecLine1[i], vecInfo, ' ');
+            if (vecInfo.size() != 101) {
+                std::cout << "extern feature input error" << std::endl;
+            }
+            extern_nodes[ext_count].init(100, -1, NULL);
+            extern_nodes[ext_count].set_bucket();
+            vecInsts[idx].syn_feats[i][0] = &extern_nodes[ext_count];
+            for (int j = 0; j < 100; j++) {
+                extern_nodes[ext_count].val[j] = atof(vecInfo[j + 1].c_str());
+            }
+            ext_count++;
+
+            split_bychar(vecLine2[i], vecInfo, ' ');
+            if (vecInfo.size() != 101) {
+                std::cout << "extern feature input error" << std::endl;
+            }
+            extern_nodes[ext_count].init(100, -1, NULL);
+            extern_nodes[ext_count].set_bucket();
+            vecInsts[idx].syn_feats[i][1] = &extern_nodes[ext_count];
+            for (int j = 0; j < 100; j++) {
+                extern_nodes[ext_count].val[j] = atof(vecInfo[j + 1].c_str());
+            }
+            ext_count++;
+
+            split_bychar(vecLine3[i], vecInfo, ' ');
+            if (vecInfo.size() != 101) {
+                std::cout << "extern feature input error" << std::endl;
+            }
+            extern_nodes[ext_count].init(100, -1, NULL);
+            extern_nodes[ext_count].set_bucket();
+            vecInsts[idx].syn_feats[i][2] = &extern_nodes[ext_count];
+            for (int j = 0; j < 100; j++) {
+                extern_nodes[ext_count].val[j] = atof(vecInfo[j + 1].c_str());
+            }
+            ext_count++;
+
+            split_bychar(vecLine4[i], vecInfo, ' ');
+            if (vecInfo.size() != 101) {
+                std::cout << "extern feature input error" << std::endl;
+            }
+            extern_nodes[ext_count].init(100, -1, NULL);
+            extern_nodes[ext_count].set_bucket();
+            vecInsts[idx].syn_feats[i][3] = &extern_nodes[ext_count];
+            for (int j = 0; j < 100; j++) {
+                extern_nodes[ext_count].val[j] = atof(vecInfo[j + 1].c_str());
+            }
+            ext_count++;
+
+            split_bychar(vecLine5[i], vecInfo, ' ');
+            if (vecInfo.size() != 601) {
+                std::cout << "extern feature input error" << std::endl;
+            }
+            extern_nodes[ext_count].init(300, -1, NULL);
+            extern_nodes[ext_count].set_bucket();
+            vecInsts[idx].syn_feats[i][4] = &extern_nodes[ext_count];
+            for (int j = 0; j < 300; j++) {
+                extern_nodes[ext_count].val[j] = atof(vecInfo[j + 1].c_str());
+            }
+            ext_count++;
+            extern_nodes[ext_count].init(300, -1, NULL);
+            extern_nodes[ext_count].set_bucket();
+            vecInsts[idx].syn_feats[i][5] = &extern_nodes[ext_count];
+            for (int j = 0; j < 300; j++) {
+                extern_nodes[ext_count].val[j] = atof(vecInfo[j + 301].c_str());
+            }
+            ext_count++;
+        }
+
+        if ((idx + 1) % m_options.verboseIter == 0) {
+            std::cout << idx + 1 << " ";
+            if ((idx + 1) % (40 * m_options.verboseIter) == 0)
+                std::cout << std::endl;
+            std::cout.flush();
+        }
+
+        idx++;
+
+    }
+
+    std::cout << idx << std::endl;
+
 
 }
 
