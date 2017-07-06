@@ -47,16 +47,16 @@ public:
   inline bool isREL() const { return _code == REL; }
 
 public:
-//  TODO: add label?
+  //  TODO: add label?
   inline std::string str(HyperParams *opts) const {
     if (_code == NER) return "NER_" + opts->ner_labels.from_id(_label);
     else if (_code == REL) {
-        if (_label >= 0) {
-            return "REL_" + opts->rel_labels.from_id(_label);
-        }
-        else {
-            return "RREL_" + opts->rel_labels.from_id(-_label);
-        }
+      if (_label >= 0) {
+        return "REL_" + opts->rel_labels.from_id(_label);
+      }
+      else {
+        return "RREL_" + opts->rel_labels.from_id(-_label);
+      }
     }
 
     return "NO_ACTION";

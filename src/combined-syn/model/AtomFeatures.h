@@ -20,9 +20,13 @@ public:
 
 public:
   IncLSTM1Builder* p_action_lstm;
-  LSTM1Builder* p_word_left_lstm;
-  LSTM1Builder* p_word_right_lstm;
+  LSTM1Builder* p_word_left_lstm1;
+  LSTM1Builder* p_word_right_lstm1;
   vector<BiNode>* p_word_tanh_conv2;
+
+  LSTM1Builder* p_ext_word_left_lstm;
+  LSTM1Builder* p_ext_word_right_lstm;
+  vector<BiNode>* p_ext_word_tanh_conv;
 
 public:
   void clear(){
@@ -39,9 +43,12 @@ public:
     label_i = "";
     label_j = "";
     p_action_lstm = NULL;
-    p_word_left_lstm = NULL;
-    p_word_right_lstm = NULL;
+    p_word_left_lstm1 = NULL;
+    p_word_right_lstm1 = NULL;
     p_word_tanh_conv2 = NULL;
+    p_ext_word_left_lstm = NULL;
+    p_ext_word_right_lstm = NULL;
+    p_ext_word_tanh_conv = NULL;
   }
 
 };

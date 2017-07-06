@@ -148,7 +148,7 @@ public:
             return -1;
         }
 
-        CStateItem *lastNERState = _lastNERState;
+        const CStateItem *lastNERState = (_next_i == 0 && _next_dist == 1) ? this : _lastNERState;
         while (lastNERState != NULL && lastNERState->_step >= i + 1) {
             //cannot be _next_i because of the last word of one sentence may be an entity
             if (lastNERState->_step == i + 1) {
@@ -164,7 +164,7 @@ public:
             return -1;
         }
 
-        CStateItem *lastNERState = _lastNERState;
+        const CStateItem *lastNERState = (_next_i == 0 && _next_dist == 1) ? this : _lastNERState;
         while (lastNERState != NULL && lastNERState->_step >= i + 1) {
             //cannot be _next_i because of the last word of one sentence may be an entity
             if (lastNERState->_step == i + 1) {
@@ -454,8 +454,8 @@ public:
         _atomFeat.next_j = _next_j;
         _atomFeat.next_dist = _next_dist;
 
-        _atomFeat.p_word_left_lstm = global_nodes == NULL ? NULL : &(global_nodes->word_left_lstm);
-        _atomFeat.p_word_right_lstm = global_nodes == NULL ? NULL : &(global_nodes->word_right_lstm);
+        _atomFeat.p_word_left_lstm1 = global_nodes == NULL ? NULL : &(global_nodes->word_left_lstm1);
+        _atomFeat.p_word_right_lstm1 = global_nodes == NULL ? NULL : &(global_nodes->word_right_lstm1);
         _atomFeat.p_word_tanh_conv2 = global_nodes == NULL ? NULL : &(global_nodes->word_tanh_conv2);
 
         _atomFeat.rel_must_o = -1;
@@ -484,6 +484,11 @@ public:
                 _atomFeat.rel_must_o = 1;
             }
         }
+
+        _atomFeat.p_ext_word_left_lstm = global_nodes == NULL ? NULL : &(global_nodes->ext_word_left_lstm);
+        _atomFeat.p_ext_word_right_lstm = global_nodes == NULL ? NULL : &(global_nodes->ext_word_right_lstm);
+
+        _atomFeat.p_ext_word_tanh_conv = global_nodes == NULL ? NULL : &(global_nodes->ext_word_tanh_conv1);
     }
 };
 

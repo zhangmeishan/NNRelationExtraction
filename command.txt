@@ -1,9 +1,9 @@
-cmake .. -DEIGEN3_INCLUDE_DIR=/c/eigen/ -DN3L_INCLUDE_DIR=/d/github/LibN3L-2.0/
+cmake .. -DEIGEN3_DIR=/d/eigen/ -DN3L_DIR=/d/N3LDG/
 
 
--l -train D:\ACL2017\yue\experiment-debug\data\train.re -dev D:\ACL2017\yue\experiment-debug\data\train.re -test D:\ACL2017\yue\experiment-debug\data\test.re -option D:\ACL2017\yue\experiment-debug\option.debug
--l -train D:\ACL2017\yue\experiment-debug\data\train.re -dev D:\ACL2017\yue\experiment-debug\data\dev.re -test D:\ACL2017\yue\experiment-debug\data\test.re -option D:\ACL2017\yue\experiment-debug\option.debug
+-l -train E:\experiments\ACL2017\yue\experiment-debug\data\train.re -dev E:\experiments\ACL2017\yue\experiment-debug\data\train.re -test E:\experiments\ACL2017\yue\experiment-debug\data\test.re -option E:\experiments\ACL2017\yue\experiment-debug\option.debug
+-l -train E:\experiments\ACL2017\yue\experiment-debug\data\train.re -dev E:\experiments\ACL2017\yue\experiment-debug\data\dev.re -test E:\experiments\ACL2017\yue\experiment-debug\data\test.re -option E:\experiments\ACL2017\yue\experiment-debug\option.debug
 
 
--l -train D:\ACL2017\yue\experiment-debug\relation\train.re -dev D:\ACL2017\yue\experiment-debug\relation\train.re  -test D:\ACL2017\yue\experiment-debug\relation\test.re -option D:\ACL2017\yue\experiment-debug\option.debug
--l -train D:\ACL2017\yue\experiment-debug\relation\train.re -dev D:\ACL2017\yue\experiment-debug\relation\test.re  -option D:\ACL2017\yue\experiment-debug\option.release
+-l -train E:\experiments\ACL2017\yue\experiment-debug\relation\train.re -dev E:\experiments\ACL2017\yue\experiment-debug\relation\train.re  -test E:\experiments\ACL2017\yue\experiment-debug\relation\test.re -option E:\experiments\ACL2017\yue\experiment-debug\option.debug
+-l -train E:\experiments\ACL2017\yue\experiment-debug\relation\train.re -dev E:\experiments\ACL2017\yue\experiment-debug\relation\test.re  -option E:\experiments\ACL2017\yue\experiment-debug\option.release

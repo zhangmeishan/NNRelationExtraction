@@ -1,4 +1,4 @@
-project(RelationExtractor)
+project(NNRelationExtraction)
 cmake_minimum_required(VERSION 2.7 FATAL_ERROR)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
@@ -7,7 +7,6 @@ set (EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 
 function(find_mkl)
   set(MKL_ARCH intel64)
-  set(MKL_ROOT /opt/intel/mkl)
   find_path(MKL_INCLUDE_DIR mkl.h
           PATHS ${MKL_ROOT} ${MKL_ROOT}/include)
   find_library(MKL_CORE_LIB NAMES mkl_intel_lp64 mkl_sequential mkl_core
@@ -44,7 +43,7 @@ endfunction()
 
 ######## Cross-compiler, cross-platform options
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEIGEN_FAST_MATH")
-if (MKL OR MKL_ROOT)
+if (MKL)
   find_mkl()  # sets include/lib directories and sets ${LIBS} needed for linking
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEIGEN_USE_MKL_ALL")
 endif()
@@ -53,7 +52,7 @@ endif()
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEIGEN_HAS_C99_MATH /MP")   # -Wall produces 20k warnings
 else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-braces")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-braces -fopenmp")
 endif()
 
 
@@ -63,9 +62,10 @@ else()
     SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -fPIC -funroll-loops -w -std=c++11 -Ofast -march=native" )
 endif()
 add_definitions( -DUSE_FLOAT )
+add_definitions( -DEIGEN_DONT_PARALLELIZE )
 
 
-include_directories(${EIGEN3_INCLUDE_DIR})
-include_directories(${N3L_INCLUDE_DIR})
+include_directories(${EIGEN3_DIR})
+include_directories(${N3L_DIR})
 
 add_subdirectory(src)
