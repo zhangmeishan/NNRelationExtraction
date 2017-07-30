@@ -11,9 +11,9 @@
 #include "IncrementalNodes.h"
 
 class CStateItem {
-public:
+  public:
     short _label;
-    short _next_i; // 
+    short _next_i; //
     short _next_dist;
     short _next_j; // _next_j = _next_i + _next_dist;
     short _step;
@@ -33,12 +33,12 @@ public:
     IncrementalNodes _inc_nodes;
 
 
-public:
+  public:
     bool _bStart; // whether it is a start state
     bool _bGold; // for train
     bool _bEnd; // whether it is an end state
 
-public:
+  public:
     CStateItem() {
         clear();
     }
@@ -81,7 +81,7 @@ public:
 
 
 
-protected:
+  protected:
     inline void copyProperty2Next(CStateItem *next) {
         //memcpy(next->_labels, _labels, sizeof(short) * _step);
 
@@ -89,8 +89,7 @@ protected:
             next->_next_i = 0;
             next->_next_dist = _next_dist + 1;
             next->_next_j = _next_dist + 1;
-        }
-        else {
+        } else {
             next->_next_i = _next_i + 1;
             next->_next_dist = _next_dist;
             next->_next_j = _next_j + 1;
@@ -112,11 +111,11 @@ protected:
     }
 
     //inline void clearProperty() {
-        //_labels[_step] = invalid_label; // impossible number
+    //_labels[_step] = invalid_label; // impossible number
     //}
 
     // conditions
-public:
+  public:
     bool allow_ner() const {
         if (_next_dist == 0 && _next_i < _word_size) {
             return true;
@@ -136,7 +135,7 @@ public:
         return _bEnd;
     }
 
-public:
+  public:
     short getNERId(const int& i) const {
         if (_next_dist == 0 && i >= _next_i) {
             return -1;
@@ -169,8 +168,7 @@ public:
 
         if (lastNERState == NULL || lastNERState->_step <= i || lastNERState->_label % 4 == 0) {
             return i;
-        }
-        else {
+        } else {
             lastNERState = lastNERState->_lastNERState;
             while (lastNERState->_label % 4 != 1) {
                 lastNERState = lastNERState->_lastNERState;
@@ -181,7 +179,7 @@ public:
     }
 
     //actions
-public:
+  public:
     void ner(CStateItem *next, short ner_id) {
         if (!allow_ner()) {
             std::cout << "assign ner error" << std::endl;
@@ -192,8 +190,7 @@ public:
         next->_label = ner_id;
         if (_label > 0) {
             next->_lastNERState = this;
-        }
-        else {
+        } else {
             next->_lastNERState = _lastNERState;
         }
 
@@ -215,16 +212,14 @@ public:
 
         if (_next_dist == 1 && _next_i == 0 && _label > 0) { // first relation operation
             next->_lastNERState = this;
-        }
-        else {
+        } else {
             next->_lastNERState = _lastNERState;
         }
 
 
         if ((_next_dist == 1 && _next_i == 0) || _label == 0) {
             next->_lastRELState = _lastRELState;
-        }
-        else {
+        } else {
             next->_lastRELState = this;
             if (_label == invalid_label) {
                 std::cout << "strange relation" << std::endl;
@@ -236,18 +231,16 @@ public:
     }
 
     //move, orcale
-public:
+  public:
     void move(CStateItem *next, const CAction &ac) {
         next->_bStart = false;
         next->_bEnd = false;
         next->_bGold = false;
         if (ac.isNER()) {
             ner(next, ac._label);
-        }
-        else if (ac.isREL()) {
+        } else if (ac.isREL()) {
             rel(next, ac._label); //TODO:
-        }
-        else {
+        } else {
             std::cout << "error action" << std::endl;
         }
     }
@@ -262,18 +255,15 @@ public:
         while (prev != NULL) {
             if (prev->_next_i == prev->_next_j) {
                 result.ners[prev->_next_i] = opts.ner_labels.from_id(curr->_label);
-            }
-            else {
+            } else {
                 short labelId = curr->_label;
                 if (labelId > 0) {
                     result.relations[prev->_next_i][prev->_next_dist - 1] = opts.rel_labels.from_id(labelId);
                     result.directions[prev->_next_i][prev->_next_dist - 1] = 1;
-                }
-                else if (labelId < 0) {
+                } else if (labelId < 0) {
                     result.relations[prev->_next_i][prev->_next_dist - 1] = opts.rel_labels.from_id(-labelId);
                     result.directions[prev->_next_i][prev->_next_dist - 1] = -1;
-                }
-                else {
+                } else {
                     result.relations[prev->_next_i][prev->_next_dist - 1] = opts.rel_labels.from_id(0);
                     result.directions[prev->_next_i][prev->_next_dist - 1] = 0;
                 }
@@ -350,14 +340,12 @@ public:
                     ac.set(CAction::NER, 4 * i + 4);  //s-xx
                     if (params->embeded_actions.from_string(ac.str(opts)) >= 0)actions.push_back(ac);
                 }
-            }
-            else if (modvalue == 1) { //b-xx
+            } else if (modvalue == 1) { //b-xx
                 ac.set(CAction::NER, _lastAction._label + 1);  //m-xx
                 if (params->embeded_actions.from_string(ac.str(opts)) >= 0)actions.push_back(ac);
                 ac.set(CAction::NER, _lastAction._label + 2);  //e-xx
                 if (params->embeded_actions.from_string(ac.str(opts)) >= 0)actions.push_back(ac);
-            }
-            else { // m-xx
+            } else { // m-xx
                 ac.set(CAction::NER, _lastAction._label);  //m-xx
                 if (params->embeded_actions.from_string(ac.str(opts)) >= 0)actions.push_back(ac);
                 ac.set(CAction::NER, _lastAction._label + 1);  //e-xx
@@ -378,8 +366,8 @@ public:
             int modvalue_j = label_j % 4;
 
             if (label_i > 0 && label_j > 0
-                && (modvalue_i == 0 || modvalue_i == 3)
-                && (modvalue_j == 0 || modvalue_j == 3)) {
+                    && (modvalue_i == 0 || modvalue_i == 3)
+                    && (modvalue_j == 0 || modvalue_j == 3)) {
                 for (int idx = 0; idx < opts->rel_labels.size(); idx++) {
                     if (opts->rel_dir[opts->rel_labels.from_id(idx)].find(1) != opts->rel_dir[opts->rel_labels.from_id(idx)].end()) {
                         ac.set(CAction::REL, idx);
@@ -390,8 +378,7 @@ public:
                         actions.push_back(ac);
                     }
                 }
-            }
-            else {
+            } else {
                 ac.set(CAction::REL, 0);
                 actions.push_back(ac);
             }
@@ -422,13 +409,12 @@ public:
     }
 
 
-public:
+  public:
 
     inline void computeNextScore(Graph *cg, const vector<CAction>& acs, bool useBeam) {
         if (_bStart || !useBeam) {
             _nextscores.forward(cg, acs, _atomFeat, NULL);
-        }
-        else {
+        } else {
             _nextscores.forward(cg, acs, _atomFeat, _score);
         }
     }
@@ -458,13 +444,12 @@ public:
             int modvalue_j = label_j % 4;
 
             if (label_i > 0 && label_j > 0
-                && (modvalue_i == 0 || modvalue_i == 3)
-                && (modvalue_j == 0 || modvalue_j == 3)) {
+                    && (modvalue_i == 0 || modvalue_i == 3)
+                    && (modvalue_j == 0 || modvalue_j == 3)) {
                 _atomFeat.rel_must_o = 0;
                 _atomFeat.next_i_start = getSpanStart(_next_i);
                 _atomFeat.next_j_start = getSpanStart(_next_j);
-            }
-            else {
+            } else {
                 _atomFeat.rel_must_o = 1;
             }
         }
@@ -472,14 +457,14 @@ public:
 };
 
 class CScoredState {
-public:
+  public:
     CStateItem *item;
     CAction ac;
     dtype score;
     bool bGold;
     int position;
 
-public:
+  public:
     CScoredState() : item(0), score(0), ac(0, -1), bGold(0), position(-1) {
     }
 
@@ -488,7 +473,7 @@ public:
 
     }
 
-public:
+  public:
     bool operator<(const CScoredState &a1) const {
         return score < a1.score;
     }
@@ -507,7 +492,7 @@ public:
 };
 
 class CScoredState_Compare {
-public:
+  public:
     int operator()(const CScoredState &o1, const CScoredState &o2) const {
         if (o1.score < o2.score)
             return -1;

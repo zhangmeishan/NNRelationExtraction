@@ -11,30 +11,30 @@
 #include "State.h"
 
 class Extractor {
-public:
-	Extractor(size_t memsize);
-	virtual ~Extractor();
+  public:
+    Extractor(size_t memsize);
+    virtual ~Extractor();
 
-public:
-	Driver m_driver;
-	Options m_options;
-	Pipe m_pipe;
+  public:
+    Driver m_driver;
+    Options m_options;
+    Pipe m_pipe;
 
-public:
-	int createAlphabet( vector<Instance>& vecInsts);
+  public:
+    int createAlphabet( vector<Instance>& vecInsts);
 
-public:
-	void train(const string& trainFile, const string& devFile, const string& testFile, const string& modelFile, const string& optionFile);
-	void predict(Instance& input, CResult& output);
-	void test(const string& testFile, const string& outputFile, const string& modelFile);
+  public:
+    void train(const string& trainFile, const string& devFile, const string& testFile, const string& modelFile, const string& optionFile);
+    void predict(Instance& input, CResult& output);
+    void test(const string& testFile, const string& outputFile, const string& modelFile);
 
-	// static training
-	void getGoldActions( vector<Instance>& vecInsts, vector<vector<CAction> >& vecActions);
+    // static training
+    void getGoldActions( vector<Instance>& vecInsts, vector<vector<CAction> >& vecActions);
 
 
-public:
-	void writeModelFile(const string& outputModelFile);
-	void loadModelFile(const string& inputModelFile);
+  public:
+    void writeModelFile(const string& outputModelFile);
+    void loadModelFile(const string& inputModelFile);
 
 };
 

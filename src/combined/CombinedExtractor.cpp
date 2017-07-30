@@ -1,4 +1,6 @@
 #include "CombinedExtractor.h"
+#include <chrono>
+#include <omp.h>
 #include <set>
 
 #include "Argument_helper.h"
@@ -22,14 +24,13 @@ int Extractor::createAlphabet(vector<Instance> &vecInsts) {
     unordered_map<string, int> ner_stat;
     unordered_map<string, int> rel_stat;
     unordered_map<string, int> char_stat;
-
+    unordered_map<string, int> nerlabel_stat;
     string root = "ROOT";
 
 
     assert(totalInstance > 0);
     for (int numInstance = 0; numInstance < vecInsts.size(); numInstance++) {
         const Instance &instance = vecInsts[numInstance];
-
         for (int idx = 0; idx < instance.words.size(); idx++) {
             string curWord = normalize_to_lower(instance.words[idx]);
             m_driver._hyperparams.word_stat[curWord]++;
@@ -43,6 +44,8 @@ int Extractor::createAlphabet(vector<Instance> &vecInsts) {
             if (is_start_label(curner)) {
                 ner_stat[cleanLabel(curner)]++;
             }
+
+            nerlabel_stat[curner]++;
 
             for (int idy = 0; idy < instance.chars[idx].size(); idy++) {
                 char_stat[instance.chars[idx][idy]]++;
@@ -61,8 +64,7 @@ int Extractor::createAlphabet(vector<Instance> &vecInsts) {
 
     if (m_options.wordEmbFile != "") {
         m_driver._modelparams.embeded_ext_words.initial(m_options.wordEmbFile);
-    }
-    else {
+    } else {
         std::cerr << "missing embedding file! \n";
         exit(0);
     }
@@ -86,9 +88,10 @@ int Extractor::createAlphabet(vector<Instance> &vecInsts) {
         m_driver._hyperparams.ner_labels.from_string("s-" + iter->first);
     }
     m_driver._hyperparams.ner_labels.set_fixed_flag(true);
+    m_driver._hyperparams.ner_noprefix_num = ner_stat.size();
     int ner_count = m_driver._hyperparams.ner_labels.size();
-    ner_stat[nullkey] = 1;
-    m_driver._modelparams.embeded_ners.initial(ner_stat, 0);
+    nerlabel_stat[unknownkey] = 1;
+    m_driver._modelparams.embeded_ners.initial(nerlabel_stat, 0);
 
 
     m_driver._hyperparams.rel_labels.clear();
@@ -107,10 +110,9 @@ int Extractor::createAlphabet(vector<Instance> &vecInsts) {
     vector<CStateItem> state(m_driver._hyperparams.maxlength + 1);
     CResult output;
     CAction answer;
-    Metric ner, rel, rel_punc;
+    Metric ner, rel;
     ner.reset();
     rel.reset();
-    rel_punc.reset();
 
     int stepNum;
 
@@ -122,10 +124,8 @@ int Extractor::createAlphabet(vector<Instance> &vecInsts) {
         while (!state[stepNum].IsTerminated()) {
             state[stepNum].getGoldAction(m_driver._hyperparams, instance.result, answer);
             //       std::cout << answer.str(&(m_driver._hyperparams)) << " ";
-
             action_stat[answer.str(&(m_driver._hyperparams))]++;
             //      TODO: state? answer(gold action)?
-            state[stepNum].prepare(&m_driver._hyperparams, NULL, NULL);
             state[stepNum].move(&(state[stepNum + 1]), answer);
             stepNum++;
         }
@@ -160,13 +160,14 @@ int Extractor::createAlphabet(vector<Instance> &vecInsts) {
 void Extractor::getGoldActions(vector<Instance>& vecInsts, vector<vector<CAction> >& vecActions) {
     vecActions.clear();
 
-    static vector<CAction> acs;
-    static bool bFindGold;
-    Metric ner, rel, rel_punc;
+    vector<CAction> acs;
+    bool bFindGold;
+    Metric ner, rel;
     vector<CStateItem> state(m_driver._hyperparams.maxlength + 1);
     CResult output;
     CAction answer;
-    ner.reset(); rel.reset(); rel_punc.reset();
+    ner.reset();
+    rel.reset();
     static int numInstance, stepNum;
     vecActions.resize(vecInsts.size());
     for (numInstance = 0; numInstance < vecInsts.size(); numInstance++) {
@@ -221,7 +222,7 @@ void Extractor::getGoldActions(vector<Instance>& vecInsts, vector<vector<CAction
 }
 
 void Extractor::train(const string &trainFile, const string &devFile, const string &testFile, const string &modelFile,
-    const string &optionFile) {
+                      const string &optionFile) {
     if (optionFile != "")
         m_options.load(optionFile);
 
@@ -247,9 +248,6 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
 
     m_driver._modelparams.tag_table.initial(&m_driver._modelparams.embeded_tags, m_options.tagEmbSize, true);
 
-    m_driver._modelparams.action_table.initial(&m_driver._modelparams.embeded_actions, m_options.actionEmbSize, true);
-
-    //m_driver._modelparams.label_table.initial(&m_driver._modelparams.embeded_labels, m_options.labelEmbSize, true);
     m_driver._modelparams.char_table.initial(&m_driver._modelparams.embeded_chars, m_options.charEmbSize, true);
 
     m_driver._modelparams.ner_table.initial(&m_driver._modelparams.embeded_ners, m_options.nerEmbSize, true);
@@ -269,24 +267,22 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
     for (int i = 0; i < inputSize; ++i)
         indexes.push_back(i);
 
-    static Metric eval;
-    static Metric dev_ner, dev_rel;
-    static Metric test_ner, test_rel;
+    Metric eval;
+    Metric dev_ner, dev_rel;
+    Metric test_ner, test_rel;
 
     int maxIter = m_options.maxIter;
     int oneIterMaxRound = (inputSize + m_options.batchSize - 1) / m_options.batchSize;
     std::cout << "\nmaxIter = " << maxIter << std::endl;
     int devNum = devInsts.size(), testNum = testInsts.size();
 
-    static vector<CResult > decodeInstResults;
-    static CResult curDecodeInst;
-    static bool bCurIterBetter;
-    static vector<Instance> subInstances;
-    static vector<vector<CAction> > subInstGoldActions;
+    vector<CResult > decodeInstResults;
+    bool bCurIterBetter;
+    vector<Instance> subInstances;
+    vector<vector<CAction> > subInstGoldActions;
     NRVec<bool> decays;
     decays.resize(maxIter);
     decays = false;
-    decays[5] = true; decays[15] = true; decays[30] = true; decays[50] = true; decays[75] = true;
     int maxNERIter = m_options.maxNERIter;
     int startBeam = m_options.startBeam;
     m_driver.setGraph(false);
@@ -301,52 +297,87 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
         }
         std::cout << "##### Iteration " << iter << std::endl;
         srand(iter);
-        random_shuffle(indexes.begin(), indexes.end());
-        std::cout << "random: " << indexes[0] << ", " << indexes[indexes.size() - 1] << std::endl;
         bool bEvaluate = false;
 
-        eval.reset();
-        bEvaluate = true;
-        for (int idy = 0; idy < inputSize; idy++) {
-            subInstances.clear();
-            subInstGoldActions.clear();
-            subInstances.push_back(trainInsts[indexes[idy]]);
-            subInstGoldActions.push_back(trainInstGoldactions[indexes[idy]]);
-            double cost = m_driver.train(subInstances, subInstGoldActions, iter < maxNERIter);
+        if (m_options.batchSize == 1) {
+            auto t_start_train = std::chrono::high_resolution_clock::now();
+            eval.reset();
+            bEvaluate = true;
+            random_shuffle(indexes.begin(), indexes.end());
+            std::cout << "random: " << indexes[0] << ", " << indexes[indexes.size() - 1] << std::endl;
+            for (int idy = 0; idy < inputSize; idy++) {
+                subInstances.clear();
+                subInstGoldActions.clear();
+                subInstances.push_back(trainInsts[indexes[idy]]);
+                subInstGoldActions.push_back(trainInstGoldactions[indexes[idy]]);
+                double cost = m_driver.train(subInstances, subInstGoldActions, iter < maxNERIter);
 
-            eval.overall_label_count += m_driver._eval.overall_label_count;
-            eval.correct_label_count += m_driver._eval.correct_label_count;
+                eval.overall_label_count += m_driver._eval.overall_label_count;
+                eval.correct_label_count += m_driver._eval.correct_label_count;
 
-            if ((idy + 1) % (m_options.verboseIter) == 0) {
-                std::cout << "current: " << idy + 1 << ", Cost = " << cost << ", Correct(%) = " << eval.getAccuracy() << std::endl;
-            }
-            if (m_driver._batch >= m_options.batchSize) {
+                if ((idy + 1) % (m_options.verboseIter) == 0) {
+                    auto t_end_train = std::chrono::high_resolution_clock::now();
+                    std::cout << "current: " << idy + 1 << ", Cost = " << cost << ", Correct(%) = " << eval.getAccuracy()
+                              << ", time = " << std::chrono::duration<double>(t_end_train - t_start_train).count() << std::endl;
+                }
+
+                //if (m_driver._batch >= m_options.batchSize) {
+                //    m_driver.updateModel();
+                //}
                 m_driver.updateModel();
             }
-        }
-        if (m_driver._batch > 0) {
-            m_driver.updateModel();
-        }
+            {
+                auto t_end_train = std::chrono::high_resolution_clock::now();
+                std::cout << "current: " << iter + 1 << ", Correct(%) = " << eval.getAccuracy()
+                          << ", time = " << std::chrono::duration<double>(t_end_train - t_start_train).count() << std::endl;
+            }
+        } else {
+            eval.reset();
+            auto t_start_train = std::chrono::high_resolution_clock::now();
+            bEvaluate = true;
+            for (int idk = 0; idk < (inputSize + m_options.batchSize - 1) / m_options.batchSize; idk++) {
+                random_shuffle(indexes.begin(), indexes.end());
+                subInstances.clear();
+                subInstGoldActions.clear();
+                for (int idy = 0; idy < m_options.batchSize; idy++) {
+                    subInstances.push_back(trainInsts[indexes[idy]]);
+                    subInstGoldActions.push_back(trainInstGoldactions[indexes[idy]]);
+                }
+                double cost = m_driver.train(subInstances, subInstGoldActions, iter < maxNERIter);
 
+                eval.overall_label_count += m_driver._eval.overall_label_count;
+                eval.correct_label_count += m_driver._eval.correct_label_count;
 
-        std::cout << "current: " << iter + 1 << ", Correct(%) = " << eval.getAccuracy() << std::endl;
+                if ((idk + 1) % (m_options.verboseIter) == 0) {
+                    auto t_end_train = std::chrono::high_resolution_clock::now();
+                    std::cout << "current: " << idk + 1 << ", Cost = " << cost << ", Correct(%) = " << eval.getAccuracy()
+                              << ", time = " << std::chrono::duration<double>(t_end_train - t_start_train).count() << std::endl;
+                }
+
+                m_driver.updateModel();
+            }
+
+            {
+                auto t_end_train = std::chrono::high_resolution_clock::now();
+                std::cout << "current: " << iter + 1 << ", Correct(%) = " << eval.getAccuracy()
+                          << ", time = " << std::chrono::duration<double>(t_end_train - t_start_train).count() << std::endl;
+            }
+        }
 
         if (bEvaluate && devNum > 0) {
-            clock_t time_start = clock();
+            auto t_start_dev = std::chrono::high_resolution_clock::now();
             std::cout << "Dev start." << std::endl;
             bCurIterBetter = false;
             if (!m_options.outBest.empty())
                 decodeInstResults.clear();
             dev_ner.reset();
             dev_rel.reset();
+            predict(devInsts, decodeInstResults);
             for (int idx = 0; idx < devInsts.size(); idx++) {
-                predict(devInsts[idx], curDecodeInst);
-                devInsts[idx].evaluate(curDecodeInst, dev_ner, dev_rel);
-                if (!m_options.outBest.empty()) {
-                    decodeInstResults.push_back(curDecodeInst);
-                }
+                devInsts[idx].evaluate(decodeInstResults[idx], dev_ner, dev_rel);
             }
-            std::cout << "Dev finished. Total time taken is: " << double(clock() - time_start) / CLOCKS_PER_SEC << std::endl;
+            auto t_end_dev = std::chrono::high_resolution_clock::now();
+            std::cout << "Dev finished. Total time taken is: " << std::chrono::duration<double>(t_end_dev - t_start_dev).count() << std::endl;
             std::cout << "dev:" << std::endl;
             dev_ner.print();
             dev_rel.print();
@@ -359,18 +390,17 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
 
         if (testNum > 0) {
             clock_t time_start = clock();
-            std::cout << "Test start." << std::endl;
+            auto t_start_test = std::chrono::high_resolution_clock::now();
             if (!m_options.outBest.empty())
                 decodeInstResults.clear();
-            test_ner.reset(); test_rel.reset();
+            test_ner.reset();
+            test_rel.reset();
+            predict(testInsts, decodeInstResults);
             for (int idx = 0; idx < testInsts.size(); idx++) {
-                predict(testInsts[idx], curDecodeInst);
-                testInsts[idx].evaluate(curDecodeInst, test_ner, test_rel);
-                if (bCurIterBetter && !m_options.outBest.empty()) {
-                    decodeInstResults.push_back(curDecodeInst);
-                }
+                testInsts[idx].evaluate(decodeInstResults[idx], test_ner, test_rel);
             }
-            std::cout << "Test finished. Total time taken is: " << double(clock() - time_start) / CLOCKS_PER_SEC << std::endl;
+            auto t_end_test = std::chrono::high_resolution_clock::now();
+            std::cout << "Test finished. Total time taken is: " << std::chrono::duration<double>(t_end_test - t_start_test).count() << std::endl;
             std::cout << "test:" << std::endl;
             test_ner.print();
             test_rel.print();
@@ -381,19 +411,18 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
         }
 
         for (int idx = 0; idx < otherInsts.size(); idx++) {
+            auto t_start_other = std::chrono::high_resolution_clock::now();
             std::cout << "processing " << m_options.testFiles[idx] << std::endl;
-            clock_t time_start = clock();
             if (!m_options.outBest.empty())
                 decodeInstResults.clear();
-            test_ner.reset(); test_rel.reset();
+            test_ner.reset();
+            test_rel.reset();
+            predict(otherInsts[idx], decodeInstResults);
             for (int idy = 0; idy < otherInsts[idx].size(); idy++) {
-                predict(otherInsts[idx][idy], curDecodeInst);
-                otherInsts[idx][idy].evaluate(curDecodeInst, test_ner, test_rel);
-                if (bCurIterBetter && !m_options.outBest.empty()) {
-                    decodeInstResults.push_back(curDecodeInst);
-                }
+                otherInsts[idx][idy].evaluate(decodeInstResults[idy], test_ner, test_rel);
             }
-            std::cout << m_options.testFiles[idx] << " finished. Total time taken is: " << double(clock() - time_start) / CLOCKS_PER_SEC << std::endl;
+            auto t_end_other = std::chrono::high_resolution_clock::now();
+            std::cout << "Test finished. Total time taken is: " << std::chrono::duration<double>(t_end_other - t_start_other).count() << std::endl;
             std::cout << "test:" << std::endl;
             test_ner.print();
             test_rel.print();
@@ -410,12 +439,36 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
             writeModelFile(modelFile);
         }
 
-
     }
 }
 
-void Extractor::predict(Instance &input, CResult &output) {
-    m_driver.decode(input, output);
+void Extractor::predict(vector<Instance>& inputs, vector<CResult> &outputs) {
+    int sentNum = inputs.size();
+    if (sentNum <= 0) return;
+    vector<Instance> batch_sentences;
+    vector<CResult> batch_outputs;
+    outputs.resize(sentNum);
+    int sent_count = 0;
+    for (int idx = 0; idx < sentNum; idx++) {
+        batch_sentences.push_back(inputs[idx]);
+        if (batch_sentences.size() == m_options.batchSize || idx == sentNum - 1) {
+            m_driver.decode(batch_sentences, batch_outputs);
+            batch_sentences.clear();
+            for (int idy = 0; idy < batch_outputs.size(); idy++) {
+                outputs[sent_count].copyValuesFrom(batch_outputs[idy]);
+                outputs[sent_count].words = &(inputs[sent_count].words);
+                outputs[sent_count].tags = &(inputs[sent_count].tags);
+                outputs[sent_count].heads = &(inputs[sent_count].heads);
+                outputs[sent_count].labels = &(inputs[sent_count].labels);
+                sent_count++;
+            }
+        }
+    }
+
+    if (outputs.size() != sentNum) {
+        std::cout << "decoded number not match" << std::endl;
+    }
+
 }
 
 void Extractor::test(const string &testFile, const string &outputFile, const string &modelFile) {
@@ -438,30 +491,33 @@ int main(int argc, char *argv[]) {
     bool bTrain = false;
     dsr::Argument_helper ah;
     int memsize = 0;
+    int threads = 1;
+
 
     ah.new_flag("l", "learn", "train or test", bTrain);
-    ah.new_named_string("train", "trainCorpus", "named_string", "training corpus to train a model, must when training",
-        trainFile);
-    ah.new_named_string("dev", "devCorpus", "named_string", "development corpus to train a model, optional when training",
-        devFile);
+    ah.new_named_string("train", "trainCorpus", "named_string", "training corpus to train a model, must when training", trainFile);
+    ah.new_named_string("dev", "devCorpus", "named_string", "development corpus to train a model, optional when training", devFile);
     ah.new_named_string("test", "testCorpus", "named_string",
-        "testing corpus to train a model or input file to test a model, optional when training and must when testing",
-        testFile);
+                        "testing corpus to train a model or input file to test a model, optional when training and must when testing", testFile);
     ah.new_named_string("model", "modelFile", "named_string", "model file, must when training and testing", modelFile);
-    ah.new_named_string("word", "wordEmbFile", "named_string",
-        "pretrained word embedding file to train a model, optional when training", wordEmbFile);
-    ah.new_named_string("option", "optionFile", "named_string", "option file to train a model, optional when training",
-        optionFile);
+    ah.new_named_string("word", "wordEmbFile", "named_string", "pretrained word embedding file to train a model, optional when training", wordEmbFile);
+    ah.new_named_string("option", "optionFile", "named_string", "option file to train a model, optional when training", optionFile);
     ah.new_named_string("output", "outputFile", "named_string", "output file to test, must when testing", outputFile);
     ah.new_named_int("mem", "memsize", "named_int", "memory allocated for tensor nodes", memsize);
+    ah.new_named_int("th", "thread", "named_int", "number of threads for openmp", threads);
 
     ah.process(argc, argv);
 
+    omp_set_num_threads(threads);
+    //  Eigen::setNbThreads(threads);
+    //  mkl_set_num_threads(4);
+    //  mkl_set_dynamic(false);
+    //  omp_set_nested(false);
+    //  omp_set_dynamic(false);
     Extractor extractor(memsize);
     if (bTrain) {
         extractor.train(trainFile, devFile, testFile, modelFile, optionFile);
-    }
-    else {
+    } else {
         extractor.test(testFile, outputFile, modelFile);
     }
 

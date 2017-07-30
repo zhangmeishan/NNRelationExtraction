@@ -31,7 +31,7 @@ struct HyperParams {
     int char_represent_dim;
     int char_hidden_dim;
 
-    
+
     int word_represent_dim;
     int word_context;
     int word_window_dim;
@@ -48,7 +48,7 @@ struct HyperParams {
     int rel_state_concat_dim;
     int state_hidden_dim;
 
-public:
+  public:
     HyperParams() {
         beam = 1; // TODO:
         maxlength = max_step_size;
@@ -79,7 +79,7 @@ public:
         char_context = opt.charContext;
         char_represent_dim = (2 * char_context + 1) * char_dim;
         char_hidden_dim = opt.charHiddenSize;
-        
+
         word_represent_dim = word_dim + word_ext_dim + tag_dim + char_hidden_dim;
         word_context = opt.wordContext;
         word_window_dim = (2 * word_context + 1) * word_represent_dim;
@@ -87,9 +87,9 @@ public:
         word_hidden1_dim = opt.wordHidden1Size;
         word_lstm_dim = opt.wordRNNHiddenSize;
         word_hidden2_dim = opt.wordHidden2Size;
-        
 
-        action_hidden_dim = opt.actionHiddenSize;       
+
+        action_hidden_dim = opt.actionHiddenSize;
         action_lstm_dim = opt.actionRNNHiddenSize;
 
         ner_state_concat_dim = action_lstm_dim + word_hidden2_dim;
@@ -110,13 +110,13 @@ public:
     }
 
 
-public:
+  public:
 
     void print() {
 
     }
 
-private:
+  private:
     bool bAssigned;
 };
 

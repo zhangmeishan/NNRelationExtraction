@@ -4,45 +4,54 @@
 
 #include "ModelParams.h"
 struct AtomFeatures {
-public:
-  string str_1AC;
-  string str_2AC;
-  short next_i;
-  short next_i_start;
-  short next_j;
-  short next_j_start;
-  short next_dist;
-  short last_start;
-  string label_i;
-  string label_j;
-  short word_size;
-  short rel_must_o;
+  public:
+    //ner
+    short ner_next_position;
+    short ner_last_start;
+    short ner_last_end;
+    string ner_last_label;
 
-public:
-  IncLSTM1Builder* p_action_lstm;
-  LSTM1Builder* p_word_left_lstm1;
-  LSTM1Builder* p_word_right_lstm1;
-  vector<BiNode>* p_word_tanh_conv2;
+    //rel
+    short rel_i;
+    short rel_i_start;
 
-public:
-  void clear(){
-    str_1AC = "";
-    str_2AC = "";
-    word_size = -1;
-    next_i = -1;
-    next_i_start = -1;
-    next_j = -1;
-    next_j_start = -1;
-    next_dist = -1;
-    last_start = -1;
-    rel_must_o = -1;
-    label_i = "";
-    label_j = "";
-    p_action_lstm = NULL;
-    p_word_left_lstm1 = NULL;
-    p_word_right_lstm1 = NULL;
-    p_word_tanh_conv2 = NULL;
-  }
+    short rel_j;
+    short rel_j_start;
+    string rel_j_nerlabel;
+    short rel_must_o;
+
+    //all
+    short word_size;
+    bool bRel;
+
+  public:
+    //all
+    LSTM1Builder* p_word_left_lstm;
+    LSTM1Builder* p_word_right_lstm;
+    vector<IncLSTM1Builder*> p_ner_lstms;
+
+  public:
+    void clear() {
+        ner_next_position = -1;
+        ner_last_start = -1;
+        ner_last_end = -1;
+        ner_last_label = "";
+
+        rel_i = -1;
+        rel_i_start = -1;
+        rel_j = -1;
+        rel_j_start = -1;
+        rel_j_nerlabel = "";
+        rel_must_o = -1;
+
+
+        word_size = -1;
+        bRel = false;
+
+        p_word_left_lstm = NULL;
+        p_word_right_lstm = NULL;
+        p_ner_lstms.clear();
+    }
 
 };
 

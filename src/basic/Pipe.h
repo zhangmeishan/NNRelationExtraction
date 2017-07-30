@@ -15,7 +15,7 @@
 //#define MAX_BUFFER_SIZE 256
 
 class Pipe {
-public:
+  public:
     Pipe() {
         m_jstReader = new InstanceReader();
         m_jstWriter = new InstanceWriter();
@@ -108,7 +108,7 @@ public:
         cout << "instance num: " << numInstance << endl;
     }
 
-protected:
+  protected:
     Reader *m_jstReader;
     Writer *m_jstWriter;
 

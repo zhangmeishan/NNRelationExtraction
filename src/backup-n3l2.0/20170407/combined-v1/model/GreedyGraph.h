@@ -8,19 +8,19 @@
 // This framework wastes memory
 struct GreedyGraph : Graph {
 
-public:
+  public:
     GlobalNodes globalNodes;
     // node instances
     CStateItem start;
     vector<CStateItem> states;
     vector<vector<COutput> > outputs;
 
-private:
+  private:
     ModelParams *pModel;
     HyperParams *pOpts;
 
     // node pointers
-public:
+  public:
     GreedyGraph() : Graph() {
         clear();
     }
@@ -29,7 +29,7 @@ public:
         clear();
     }
 
-public:
+  public:
     //allocate enough nodes
     inline void initial(ModelParams &model, HyperParams &opts, AlignedMemoryPool *mem) {
         std::cout << "state size: " << sizeof(CStateItem) << std::endl;
@@ -56,14 +56,13 @@ public:
     }
 
 
-public:
+  public:
     // some nodes may behave different during training and decode, for example, dropout
     inline int forward(Instance &inst, bool nerOnly, const vector<CAction> *goldAC = NULL) {
         //first step, clear node values
         if (goldAC != NULL) {
             clearValue(true);  //train
-        }
-        else {
+        } else {
             clearValue(false); // decode
         }
 
@@ -105,22 +104,19 @@ public:
                 scored_action.ac.set(actions[idy]); //TODO:
                 if (actions[idy]._label > 0) {
                     output.nPLabel = pGenerator->_nPLabel + 1;
-                }
-                else {
+                } else {
                     output.nPLabel = pGenerator->_nPLabel;
                 }
 
                 if (answer._label > 0) {
                     output.nGLabel = pGenerator->_nGLabel + 1;
-                }
-                else {
+                } else {
                     output.nGLabel = pGenerator->_nGLabel;
                 }
 
                 if (answer._label > 0 && actions[idy] == answer) {
                     output.nCLabel = pGenerator->_nCLabel + 1;
-                }
-                else {
+                } else {
                     output.nCLabel = pGenerator->_nCLabel;
                 }
                 dtype factor = 0.0;
@@ -134,8 +130,7 @@ public:
                     if (factor > 0.0001 || factor < -0.0001) {
                         std::cout << "error, factor of gold state should be zero" << std::endl;
                     }
-                }
-                else {
+                } else {
                     scored_action.bGold = false;
                     output.bGold = false;
                     if (train)pGenerator->_nextscores.outputs[idy].val[0] += factor * pOpts->delta;
@@ -178,22 +173,19 @@ public:
                         states[step]._score = &(pGenerator->_nextscores.outputs[beam[idx].position]);
                         if (action._label > 0) {
                             states[step]._nPLabel = pGenerator->_nPLabel + 1;
-                        }
-                        else {
+                        } else {
                             states[step]._nPLabel = pGenerator->_nPLabel;
                         }
 
                         if (answer._label > 0) {
                             states[step]._nGLabel = pGenerator->_nGLabel + 1;
-                        }
-                        else {
+                        } else {
                             states[step]._nGLabel = pGenerator->_nGLabel;
                         }
 
                         if (answer._label > 0 && action == answer) {
                             states[step]._nCLabel = pGenerator->_nCLabel + 1;
-                        }
-                        else {
+                        } else {
                             states[step]._nCLabel = pGenerator->_nCLabel;
                         }
                         find_next = true;
@@ -204,8 +196,7 @@ public:
                     std::cout << "serious bug here" << std::endl;
                     exit(0);
                 }
-            }
-            else {
+            } else {
                 pGenerator = beam[0].item;
                 action.set(beam[0].ac);
                 pGenerator->move(&(states[step]), action);
@@ -224,7 +215,7 @@ public:
     }
 
 
-public:
+  public:
     inline void clearValue(const bool &bTrain) {
         Graph::clearValue(bTrain);
         clearVec(outputs);

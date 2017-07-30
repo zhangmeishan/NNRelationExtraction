@@ -9,7 +9,7 @@
 #include "GreedyGraph.h"
 
 class Driver {
-public:
+  public:
     Driver(size_t memsize) : aligned_mem(memsize) {
         _bcg = NULL;
         _gcg = NULL;
@@ -28,7 +28,7 @@ public:
         _clip = 10.0;
     }
 
-public:
+  public:
     BeamGraph *_bcg;
     GreedyGraph *_gcg;
     ModelParams _modelparams;  // model parameters
@@ -43,7 +43,7 @@ public:
     bool _useBeam;
     dtype _clip;
 
-public:
+  public:
 
     inline void initial() {
         if (!_hyperparams.bValid()) {
@@ -62,7 +62,7 @@ public:
         _gcg->initial(_modelparams, _hyperparams, &aligned_mem);
 
         std::cout << "allocated memory: " << aligned_mem.capacity << ", total required memory: " << aligned_mem.required
-            << ", perc = " << aligned_mem.capacity * 1.0 / aligned_mem.required << std::endl;
+                  << ", perc = " << aligned_mem.capacity * 1.0 / aligned_mem.required << std::endl;
 
         setUpdateParameters(_hyperparams.nnRegular, _hyperparams.adaAlpha, _hyperparams.adaEps);
         _batch = 0;
@@ -70,7 +70,7 @@ public:
     }
 
 
-public:
+  public:
     dtype train(std::vector<Instance > &sentences, const vector<vector<CAction> > &goldACs, bool nerOnly) {
         _eval.reset();
         dtype cost = 0.0;
@@ -81,14 +81,12 @@ public:
                 if (nerOnly) {
                     _eval.overall_label_count += sentences[idx].words.size();
                     cost += loss_google_beam(sentences[idx].words.size());
-                }
-                else {
+                } else {
                     _eval.overall_label_count += goldACs[idx].size();
                     cost += loss_google_beam(-1);
                 }
                 _bcg->backward();
-            }
-            else {
+            } else {
                 _gcg->forward((sentences[idx]), nerOnly, &(goldACs[idx]));
                 cost += loss_google_greedy();
                 if (_gcg->outputs.size() != goldACs[idx].size()) {
@@ -105,8 +103,7 @@ public:
     void decode(Instance &sentence, CResult &result) {
         if (_useBeam) {
             _bcg->forward(sentence, false);
-        }
-        else {
+        } else {
             _gcg->forward(sentence, false);
         }
         predict(result);
@@ -128,7 +125,7 @@ public:
 
     void loadModel();
 
-private:
+  private:
     dtype loss_google_beam(int upper_step) {
         int maxstep = _bcg->outputs.size();
         if (maxstep == 0) return 1.0;
@@ -262,186 +259,185 @@ private:
 
         return cost;
     }
-/*
-    dtype loss_google_beam(int upper_step) {
-        int maxstep = _bcg->outputs.size();
-        if (maxstep == 0) return 1.0;
-        if (upper_step > 0 && maxstep > upper_step) maxstep = upper_step;
-        //_eval.correct_label_count += maxstep;
-        static PNode pBestNode = NULL;
-        static PNode pGoldNode = NULL;
-        static PNode pCurNode;
-        static dtype sum, max, gsum;
-        static int curcount, goldIndex, bestIndex;
-        static vector<dtype> scores, gscores, nscores;
-        dtype cost = 0.0;
+    /*
+        dtype loss_google_beam(int upper_step) {
+            int maxstep = _bcg->outputs.size();
+            if (maxstep == 0) return 1.0;
+            if (upper_step > 0 && maxstep > upper_step) maxstep = upper_step;
+            //_eval.correct_label_count += maxstep;
+            static PNode pBestNode = NULL;
+            static PNode pGoldNode = NULL;
+            static PNode pCurNode;
+            static dtype sum, max, gsum;
+            static int curcount, goldIndex, bestIndex;
+            static vector<dtype> scores, gscores, nscores;
+            dtype cost = 0.0;
 
-        for (int step = 0; step < maxstep; step++) {
-            curcount = _bcg->outputs[step].size();
-            if (curcount == 1) {
-                _eval.correct_label_count++;
-                continue;
-            }
-
-            gscores.resize(curcount);
-            nscores.resize(curcount);
-            for (int idx = 0; idx < curcount; idx++) {
-                pCurNode = _bcg->outputs[step][idx].in;
-                if (_bcg->outputs[step][idx].nPLabel + _bcg->outputs[step][idx].nGLabel > 0) {
-                    gscores[idx] = 2.0 * _bcg->outputs[step][idx].nCLabel / (_bcg->outputs[step][idx].nPLabel + _bcg->outputs[step][idx].nGLabel);
+            for (int step = 0; step < maxstep; step++) {
+                curcount = _bcg->outputs[step].size();
+                if (curcount == 1) {
+                    _eval.correct_label_count++;
+                    continue;
                 }
-                else if (_bcg->outputs[step][idx].bGold) {
-                    gscores[idx] = 1.0;
-                }
-                else {
-                    gscores[idx] = 0.0;
-                    std::cout << "maybe a bug exists here" << std::endl;
-                }
-                nscores[idx] = pCurNode->val[0] + (1 - gscores[idx]) * _hyperparams.delta;
-            }
 
-            max = 0.0;
-            goldIndex = -1;
-            bestIndex = -1;
-            pBestNode = pGoldNode = NULL;
-            for (int idx = 0; idx < curcount; idx++) {
-                pCurNode = _bcg->outputs[step][idx].in;
-                if (pBestNode == NULL || nscores[idx] > nscores[bestIndex]) {
-                    pBestNode = pCurNode;
-                    bestIndex = idx;
-                }
-                if (_bcg->outputs[step][idx].bGold) {
-                    pGoldNode = pCurNode;
-                    goldIndex = idx;
-                }
-            }
-
-            if (goldIndex == -1) {
-                std::cout << "impossible" << std::endl;
-            }
-
-            pGoldNode->loss[0] += -1.0;
-            pGoldNode->lossed = true;
-
-            max = nscores[bestIndex];
-            sum = 0.0;
-            gsum = 0.0;
-            scores.resize(curcount);
-            for (int idx = 0; idx < curcount; idx++) {
-                scores[idx] = exp(nscores[idx] - max);
-                sum += scores[idx];
-            }
-
-            for (int idx = 0; idx < curcount; idx++) {
-                pCurNode = _bcg->outputs[step][idx].in;
-                pCurNode->loss[0] += scores[idx] / sum;
-                pCurNode->lossed = true;
-            }
-
-            if (pBestNode == pGoldNode)_eval.correct_label_count++;
-            //_eval.overall_label_count++;
-            _batch++;
-
-            cost += -log(scores[goldIndex] / sum);
-
-            if (std::isnan(cost)) {
-                std::cout << "debug: sum = " << sum << ", gold score = " << scores[goldIndex] << std::endl;
+                gscores.resize(curcount);
+                nscores.resize(curcount);
                 for (int idx = 0; idx < curcount; idx++) {
                     pCurNode = _bcg->outputs[step][idx].in;
-                    std::cout << "predicate prob = " << scores[idx] / sum << ", gold prob" << gscores[idx] / gsum << std::endl;
+                    if (_bcg->outputs[step][idx].nPLabel + _bcg->outputs[step][idx].nGLabel > 0) {
+                        gscores[idx] = 2.0 * _bcg->outputs[step][idx].nCLabel / (_bcg->outputs[step][idx].nPLabel + _bcg->outputs[step][idx].nGLabel);
+                    }
+                    else if (_bcg->outputs[step][idx].bGold) {
+                        gscores[idx] = 1.0;
+                    }
+                    else {
+                        gscores[idx] = 0.0;
+                        std::cout << "maybe a bug exists here" << std::endl;
+                    }
+                    nscores[idx] = pCurNode->val[0] + (1 - gscores[idx]) * _hyperparams.delta;
                 }
-            }
-            if (std::isinf(cost)) {
-                std::cout << "debug: sum = " << sum << ", gold score = " << scores[goldIndex] << std::endl;
+
+                max = 0.0;
+                goldIndex = -1;
+                bestIndex = -1;
+                pBestNode = pGoldNode = NULL;
                 for (int idx = 0; idx < curcount; idx++) {
                     pCurNode = _bcg->outputs[step][idx].in;
-                    std::cout << "predicate prob = " << scores[idx] / sum << ", gold prob" << gscores[idx] / gsum << std::endl;
+                    if (pBestNode == NULL || nscores[idx] > nscores[bestIndex]) {
+                        pBestNode = pCurNode;
+                        bestIndex = idx;
+                    }
+                    if (_bcg->outputs[step][idx].bGold) {
+                        pGoldNode = pCurNode;
+                        goldIndex = idx;
+                    }
                 }
+
+                if (goldIndex == -1) {
+                    std::cout << "impossible" << std::endl;
+                }
+
+                pGoldNode->loss[0] += -1.0;
+                pGoldNode->lossed = true;
+
+                max = nscores[bestIndex];
+                sum = 0.0;
+                gsum = 0.0;
+                scores.resize(curcount);
+                for (int idx = 0; idx < curcount; idx++) {
+                    scores[idx] = exp(nscores[idx] - max);
+                    sum += scores[idx];
+                }
+
+                for (int idx = 0; idx < curcount; idx++) {
+                    pCurNode = _bcg->outputs[step][idx].in;
+                    pCurNode->loss[0] += scores[idx] / sum;
+                    pCurNode->lossed = true;
+                }
+
+                if (pBestNode == pGoldNode)_eval.correct_label_count++;
+                //_eval.overall_label_count++;
+                _batch++;
+
+                cost += -log(scores[goldIndex] / sum);
+
+                if (std::isnan(cost)) {
+                    std::cout << "debug: sum = " << sum << ", gold score = " << scores[goldIndex] << std::endl;
+                    for (int idx = 0; idx < curcount; idx++) {
+                        pCurNode = _bcg->outputs[step][idx].in;
+                        std::cout << "predicate prob = " << scores[idx] / sum << ", gold prob" << gscores[idx] / gsum << std::endl;
+                    }
+                }
+                if (std::isinf(cost)) {
+                    std::cout << "debug: sum = " << sum << ", gold score = " << scores[goldIndex] << std::endl;
+                    for (int idx = 0; idx < curcount; idx++) {
+                        pCurNode = _bcg->outputs[step][idx].in;
+                        std::cout << "predicate prob = " << scores[idx] / sum << ", gold prob" << gscores[idx] / gsum << std::endl;
+                    }
+                }
+
             }
 
+            return cost;
         }
 
-        return cost;
-    }
+        dtype loss_google_greedy() {
+            int maxstep = _gcg->outputs.size();
+            if (maxstep == 0) return 1.0;
+            //_eval.correct_label_count += maxstep;
+            static PNode pBestNode = NULL;
+            static PNode pGoldNode = NULL;
+            static PNode pCurNode;
+            static dtype sum, max;
+            static int curcount, goldIndex;
+            static vector<dtype> scores;
+            dtype cost = 0.0;
 
-    dtype loss_google_greedy() {
-        int maxstep = _gcg->outputs.size();
-        if (maxstep == 0) return 1.0;
-        //_eval.correct_label_count += maxstep;
-        static PNode pBestNode = NULL;
-        static PNode pGoldNode = NULL;
-        static PNode pCurNode;
-        static dtype sum, max;
-        static int curcount, goldIndex;
-        static vector<dtype> scores;
-        dtype cost = 0.0;
-
-        for (int step = 0; step < maxstep; step++) {
-            curcount = _gcg->outputs[step].size();
-            if (curcount == 1)continue;
-            max = 0.0;
-            goldIndex = -1;
-            pBestNode = pGoldNode = NULL;
-            for (int idx = 0; idx < curcount; idx++) {
-                pCurNode = _gcg->outputs[step][idx].in;
-                if (pBestNode == NULL || pCurNode->val[0] > pBestNode->val[0]) {
-                    pBestNode = pCurNode;
+            for (int step = 0; step < maxstep; step++) {
+                curcount = _gcg->outputs[step].size();
+                if (curcount == 1)continue;
+                max = 0.0;
+                goldIndex = -1;
+                pBestNode = pGoldNode = NULL;
+                for (int idx = 0; idx < curcount; idx++) {
+                    pCurNode = _gcg->outputs[step][idx].in;
+                    if (pBestNode == NULL || pCurNode->val[0] > pBestNode->val[0]) {
+                        pBestNode = pCurNode;
+                    }
+                    if (_gcg->outputs[step][idx].bGold) {
+                        pGoldNode = pCurNode;
+                        goldIndex = idx;
+                    }
                 }
-                if (_gcg->outputs[step][idx].bGold) {
-                    pGoldNode = pCurNode;
-                    goldIndex = idx;
+
+                if (goldIndex == -1) {
+                    std::cout << "impossible" << std::endl;
                 }
+                pGoldNode->loss[0] += -1.0;
+                pGoldNode->lossed = true;
+
+                max = pBestNode->val[0];
+                sum = 0.0;
+                scores.resize(curcount);
+                for (int idx = 0; idx < curcount; idx++) {
+                    pCurNode = _gcg->outputs[step][idx].in;
+                    scores[idx] = exp(pCurNode->val[0] - max);
+                    sum += scores[idx];
+                }
+
+                for (int idx = 0; idx < curcount; idx++) {
+                    pCurNode = _gcg->outputs[step][idx].in;
+                    pCurNode->loss[0] += scores[idx] / sum;
+                    pCurNode->lossed = true;
+                }
+
+                if (pBestNode == pGoldNode)_eval.correct_label_count++;
+                _eval.overall_label_count++;
+                _batch++;
+
+                cost += -log(scores[goldIndex] / sum);
+
+                if (std::isnan(cost)) {
+                    std::cout << "debug" << std::endl;
+                }
+
             }
 
-            if (goldIndex == -1) {
-                std::cout << "impossible" << std::endl;
-            }
-            pGoldNode->loss[0] += -1.0;
-            pGoldNode->lossed = true;
-
-            max = pBestNode->val[0];
-            sum = 0.0;
-            scores.resize(curcount);
-            for (int idx = 0; idx < curcount; idx++) {
-                pCurNode = _gcg->outputs[step][idx].in;
-                scores[idx] = exp(pCurNode->val[0] - max);
-                sum += scores[idx];
-            }
-
-            for (int idx = 0; idx < curcount; idx++) {
-                pCurNode = _gcg->outputs[step][idx].in;
-                pCurNode->loss[0] += scores[idx] / sum;
-                pCurNode->lossed = true;
-            }
-
-            if (pBestNode == pGoldNode)_eval.correct_label_count++;
-            _eval.overall_label_count++;
-            _batch++;
-
-            cost += -log(scores[goldIndex] / sum);
-
-            if (std::isnan(cost)) {
-                std::cout << "debug" << std::endl;
-            }
-
+            return cost;
         }
+    */
 
-        return cost;
-    }
-*/
-
-    void predict(CResult &result) {        
+    void predict(CResult &result) {
         if (_useBeam) {
             int step = _bcg->outputs.size();
             _bcg->states[step - 1][0].getResults(result, _hyperparams); //TODO:
-        }
-        else {
+        } else {
             int step = _gcg->outputs.size();
             _gcg->states[step - 1].getResults(result, _hyperparams); //TODO:
         }
     }
 
-public:
+  public:
     inline void setUpdateParameters(dtype nnRegular, dtype adaAlpha, dtype adaEps) {
         _ada._alpha = adaAlpha;
         _ada._eps = adaEps;

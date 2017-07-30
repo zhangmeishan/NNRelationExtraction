@@ -61,8 +61,7 @@ int Extractor::createAlphabet(vector<Instance> &vecInsts) {
 
     if (m_options.wordEmbFile != "") {
         m_driver._modelparams.embeded_ext_words.initial(m_options.wordEmbFile);
-    }
-    else {
+    } else {
         std::cerr << "missing embedding file! \n";
         exit(0);
     }
@@ -166,7 +165,9 @@ void Extractor::getGoldActions(vector<Instance>& vecInsts, vector<vector<CAction
     vector<CStateItem> state(m_driver._hyperparams.maxlength + 1);
     CResult output;
     CAction answer;
-    ner.reset(); rel.reset(); rel_punc.reset();
+    ner.reset();
+    rel.reset();
+    rel_punc.reset();
     static int numInstance, stepNum;
     vecActions.resize(vecInsts.size());
     for (numInstance = 0; numInstance < vecInsts.size(); numInstance++) {
@@ -221,7 +222,7 @@ void Extractor::getGoldActions(vector<Instance>& vecInsts, vector<vector<CAction
 }
 
 void Extractor::train(const string &trainFile, const string &devFile, const string &testFile, const string &modelFile,
-    const string &optionFile) {
+                      const string &optionFile) {
     if (optionFile != "")
         m_options.load(optionFile);
 
@@ -286,7 +287,11 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
     NRVec<bool> decays;
     decays.resize(maxIter);
     decays = false;
-    decays[5] = true; decays[15] = true; decays[30] = true; decays[50] = true; decays[75] = true;
+    decays[5] = true;
+    decays[15] = true;
+    decays[30] = true;
+    decays[50] = true;
+    decays[75] = true;
     int maxNERIter = m_options.maxNERIter;
     int startBeam = m_options.startBeam;
     m_driver.setGraph(false);
@@ -362,7 +367,8 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
             std::cout << "Test start." << std::endl;
             if (!m_options.outBest.empty())
                 decodeInstResults.clear();
-            test_ner.reset(); test_rel.reset();
+            test_ner.reset();
+            test_rel.reset();
             for (int idx = 0; idx < testInsts.size(); idx++) {
                 predict(testInsts[idx], curDecodeInst);
                 testInsts[idx].evaluate(curDecodeInst, test_ner, test_rel);
@@ -385,7 +391,8 @@ void Extractor::train(const string &trainFile, const string &devFile, const stri
             clock_t time_start = clock();
             if (!m_options.outBest.empty())
                 decodeInstResults.clear();
-            test_ner.reset(); test_rel.reset();
+            test_ner.reset();
+            test_rel.reset();
             for (int idy = 0; idy < otherInsts[idx].size(); idy++) {
                 predict(otherInsts[idx][idy], curDecodeInst);
                 otherInsts[idx][idy].evaluate(curDecodeInst, test_ner, test_rel);
@@ -441,17 +448,17 @@ int main(int argc, char *argv[]) {
 
     ah.new_flag("l", "learn", "train or test", bTrain);
     ah.new_named_string("train", "trainCorpus", "named_string", "training corpus to train a model, must when training",
-        trainFile);
+                        trainFile);
     ah.new_named_string("dev", "devCorpus", "named_string", "development corpus to train a model, optional when training",
-        devFile);
+                        devFile);
     ah.new_named_string("test", "testCorpus", "named_string",
-        "testing corpus to train a model or input file to test a model, optional when training and must when testing",
-        testFile);
+                        "testing corpus to train a model or input file to test a model, optional when training and must when testing",
+                        testFile);
     ah.new_named_string("model", "modelFile", "named_string", "model file, must when training and testing", modelFile);
     ah.new_named_string("word", "wordEmbFile", "named_string",
-        "pretrained word embedding file to train a model, optional when training", wordEmbFile);
+                        "pretrained word embedding file to train a model, optional when training", wordEmbFile);
     ah.new_named_string("option", "optionFile", "named_string", "option file to train a model, optional when training",
-        optionFile);
+                        optionFile);
     ah.new_named_string("output", "outputFile", "named_string", "output file to test, must when testing", outputFile);
     ah.new_named_int("mem", "memsize", "named_int", "memory allocated for tensor nodes", memsize);
 
@@ -460,8 +467,7 @@ int main(int argc, char *argv[]) {
     Extractor extractor(memsize);
     if (bTrain) {
         extractor.train(trainFile, devFile, testFile, modelFile, optionFile);
-    }
-    else {
+    } else {
         extractor.test(testFile, outputFile, modelFile);
     }
 

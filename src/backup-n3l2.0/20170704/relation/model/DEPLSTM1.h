@@ -64,7 +64,7 @@ struct TreeLSTM1Params {
 
 // standard TreeLSTM1Builder from bottom to top
 class TreeLSTM1Builder {
-public:
+  public:
     int _nSize;
     int _inDim;
     int _outDim;
@@ -103,7 +103,7 @@ public:
     TreeLSTM1Params* _param;
 
 
-public:
+  public:
     TreeLSTM1Builder() {
         clear();
     }
@@ -112,7 +112,7 @@ public:
         clear();
     }
 
-public:
+  public:
     inline void init(TreeLSTM1Params* paramInit, dtype dropout, bool bottom2top = true, AlignedMemoryPool* mem = NULL) {
         _param = paramInit;
         _inDim = _param->input_l.W.inDim();
@@ -151,10 +151,10 @@ public:
             _forgetgates[idx].init(_outDim, -1, mem);
             _outputgates[idx].init(_outDim, -1, mem);
             _halfcells[idx].init(_outDim, -1, mem);
-            
+
             _inputfilters[idx].init(_outDim, -1, mem);
             _forgetfilters[idx].init(_outDim, -1, mem);
-            _cells[idx].init(_outDim, -1, mem);      
+            _cells[idx].init(_outDim, -1, mem);
             _halfhiddens[idx].init(_outDim, -1, mem);
             _hiddens[idx].init(_outDim, dropout, mem);
         }
@@ -225,7 +225,7 @@ public:
         _bottom2top = true;
     }
 
-public:
+  public:
     inline void forward(Graph *cg, const vector<PNode>& x, const vector<int>& heads, const vector<string>& labels) {
         if (x.size() == 0) {
             std::cout << "empty inputs for lstm operation" << std::endl;
@@ -236,14 +236,13 @@ public:
 
         if (_bottom2top) {
             btforward(cg, x, heads, labels);
-        }
-        else {
+        } else {
             tbforward(cg, x, heads, labels);
         }
     }
 
-protected:
-    inline void btforward(Graph *cg, const vector<PNode>& x, const vector<int>& heads, const vector<string>& labels) {       
+  protected:
+    inline void btforward(Graph *cg, const vector<PNode>& x, const vector<int>& heads, const vector<string>& labels) {
         vector<vector<int> > children;
         vector<bool> computed;
         children.resize(_nSize);
@@ -357,8 +356,7 @@ protected:
             int curHead = heads[idx];
             if (curHead >= 0) {
                 children[curHead].push_back(idx);
-            }
-            else {
+            } else {
                 root = idx;
             }
         }

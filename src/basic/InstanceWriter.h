@@ -6,24 +6,24 @@
 #include <sstream>
 
 class InstanceWriter : public Writer {
-public:
-  InstanceWriter() {}
+  public:
+    InstanceWriter() {}
 
-  ~InstanceWriter() {}
+    ~InstanceWriter() {}
 
-  int write(const Instance *pInstance) {
-    if (!m_outf.is_open()) return -1;
-    m_outf << pInstance->result.str() << endl;
-    return 0;
-  }
+    int write(const Instance *pInstance) {
+        if (!m_outf.is_open()) return -1;
+        m_outf << pInstance->result.str() << endl;
+        return 0;
+    }
 
-  //FIXME:
-  int write(const CResult &result) {
-    if (!m_outf.is_open())
-      return -1;
-    m_outf << result.str() << endl;
-    return 0;
-  }
+    //FIXME:
+    int write(const CResult &result) {
+        if (!m_outf.is_open())
+            return -1;
+        m_outf << result.str() << endl;
+        return 0;
+    }
 };
 
 #endif

@@ -5,13 +5,13 @@
 #include "AtomFeatures.h"
 
 struct ActionedNodes {
-	LookupNode last_action_input;
-	LookupNode last2_action_input;
+    LookupNode last_action_input;
+    LookupNode last2_action_input;
     BiNode action_conv;
     IncLSTM1Builder action_lstm;
 
-	ConcatNode ner_state_represent;
-	UniNode ner_state_hidden;
+    ConcatNode ner_state_represent;
+    UniNode ner_state_hidden;
 
     /*
     MaxPoolNode pool_left;
@@ -28,19 +28,19 @@ struct ActionedNodes {
     UniNode rel_state_hidden;
 
     vector<LookupNode> current_action_input;
-	vector<PDotNode> action_score;
-	vector<SPAddNode> outputs;
+    vector<PDotNode> action_score;
+    vector<SPAddNode> outputs;
 
- 
 
-	Node bucket;
+
+    Node bucket;
     Node bucket_word_hidden2;
     Node bucket_state_hidden;
-	HyperParams *opt;
+    HyperParams *opt;
 
-public:
-	inline void initial(ModelParams &params, HyperParams &hyparams, AlignedMemoryPool *mem) {
-		opt = &hyparams;
+  public:
+    inline void initial(ModelParams &params, HyperParams &hyparams, AlignedMemoryPool *mem) {
+        opt = &hyparams;
 
         last_action_input.setParam(&(params.action_table));
         last_action_input.init(hyparams.action_dim, hyparams.dropProb, mem);
@@ -60,7 +60,7 @@ public:
         pool_middle.setParam(max_token_size);
         pool_middle.init(hyparams.word_hidden2_dim, -1, mem);
         pool_right.setParam(max_token_size);
-        pool_right.init(hyparams.word_hidden2_dim, -1, mem);    
+        pool_right.init(hyparams.word_hidden2_dim, -1, mem);
         */
 
         left_lstm_middle.init(hyparams.word_lstm_dim, -1, mem);
@@ -73,35 +73,35 @@ public:
         rel_state_hidden.setParam(&(params.rel_state_hidden));
         rel_state_hidden.init(hyparams.state_hidden_dim, -1, mem);
 
-		current_action_input.resize(hyparams.action_num);
+        current_action_input.resize(hyparams.action_num);
         action_score.resize(hyparams.action_num);
         outputs.resize(hyparams.action_num);
-		//neural features
-		for (int idx = 0; idx < hyparams.action_num; idx++) {
-			current_action_input[idx].setParam(&(params.scored_action_table));
-			current_action_input[idx].init(hyparams.state_hidden_dim, -1, mem);
+        //neural features
+        for (int idx = 0; idx < hyparams.action_num; idx++) {
+            current_action_input[idx].setParam(&(params.scored_action_table));
+            current_action_input[idx].init(hyparams.state_hidden_dim, -1, mem);
 
-			action_score[idx].init(1, -1, mem);
-			outputs[idx].init(1, -1, mem);
-		}
+            action_score[idx].init(1, -1, mem);
+            outputs[idx].init(1, -1, mem);
+        }
 
-		bucket.init(hyparams.word_lstm_dim, -1, mem);
+        bucket.init(hyparams.word_lstm_dim, -1, mem);
         bucket.set_bucket();
         bucket_word_hidden2.init(hyparams.word_hidden2_dim, -1, mem);
         bucket_word_hidden2.set_bucket();
         bucket_state_hidden.init(hyparams.state_hidden_dim, -1, mem);
         bucket_state_hidden.set_bucket();
-	}
+    }
 
 
-public:
-	inline void forward(Graph *cg, const vector<CAction> &actions, const AtomFeatures &atomFeat, PNode prevStateNode) {
-		static vector<PNode> sumNodes;
-		static CAction ac;
-		static int ac_num;
+  public:
+    inline void forward(Graph *cg, const vector<CAction> &actions, const AtomFeatures &atomFeat, PNode prevStateNode) {
+        static vector<PNode> sumNodes;
+        static CAction ac;
+        static int ac_num;
         static int position;
-		static vector<PNode> states, pools_left, pools_middle, pools_right;
-		ac_num = actions.size();
+        static vector<PNode> states, pools_left, pools_middle, pools_right;
+        ac_num = actions.size();
 
         if (atomFeat.next_dist == 0) {
             last2_action_input.forward(cg, atomFeat.str_2AC);
@@ -129,11 +129,10 @@ public:
 
             ner_state_represent.forward(cg, states);
             ner_state_hidden.forward(cg, &ner_state_represent);
-        }
-        else if (atomFeat.rel_must_o == 0) {
+        } else if (atomFeat.rel_must_o == 0) {
             int i = atomFeat.next_i;
             int j = atomFeat.next_i + atomFeat.next_dist;
-           
+
             states.clear();
             /*
             PNode dep_lstm_node_i = &(atomFeat.p_dep_b2t_lstm->_hiddens[i]);
@@ -161,7 +160,7 @@ public:
 
             states.clear();
 
-            
+
             PNode left_lstm_left = (i >= 1) ? &(atomFeat.p_word_left_lstm->_hiddens[i - 1]) : &bucket;
             states.push_back(left_lstm_left);
             PNode left_lstm_node_i = &(atomFeat.p_word_left_lstm->_hiddens[i]);
@@ -184,10 +183,10 @@ public:
             states.push_back(right_lstm_node_i);
             right_lstm_start.forward(cg, &(atomFeat.p_word_right_lstm->_hiddens[0]), right_lstm_node_j);
             states.push_back(&right_lstm_start);
-            
 
 
-            
+
+
             /*
             PNode node_rep_i = &(atomFeat.p_word_tanh_conv2->at(i));
             states.push_back(node_rep_i);
@@ -231,38 +230,35 @@ public:
                 states.push_back(&bucket_word_hidden2);
             }
             */
-                   
+
             rel_state_represent.forward(cg, states);
             rel_state_hidden.forward(cg, &rel_state_represent);
-        }
-        else {
+        } else {
             //nothing do to
         }
 
 
 
 
-		for (int idx = 0; idx < ac_num; idx++) {
-			ac.set(actions[idx]);
-		
-			sumNodes.clear();
+        for (int idx = 0; idx < ac_num; idx++) {
+            ac.set(actions[idx]);
 
-			string action_name = ac.str(opt);
-			current_action_input[idx].forward(cg, action_name);
+            sumNodes.clear();
+
+            string action_name = ac.str(opt);
+            current_action_input[idx].forward(cg, action_name);
             if (atomFeat.next_dist == 0) {
                 action_score[idx].forward(cg, &current_action_input[idx], &ner_state_hidden);
-            }
-            else if(atomFeat.rel_must_o == 0){
+            } else if(atomFeat.rel_must_o == 0) {
                 action_score[idx].forward(cg, &current_action_input[idx], &rel_state_hidden);
-            }
-            else {
+            } else {
                 action_score[idx].forward(cg, &current_action_input[idx], &bucket_state_hidden);
             }
-			sumNodes.push_back(&action_score[idx]);
+            sumNodes.push_back(&action_score[idx]);
 
-			outputs[idx].forward(cg, sumNodes, 0);
-		}
-	}
+            outputs[idx].forward(cg, sumNodes, 0);
+        }
+    }
 };
 
 

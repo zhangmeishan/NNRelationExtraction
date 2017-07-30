@@ -9,7 +9,7 @@
 #include "GreedyGraph.h"
 
 class Driver {
-public:
+  public:
     Driver(size_t memsize) : aligned_mem(memsize) {
         _bcg = NULL;
         _gcg = NULL;
@@ -26,7 +26,7 @@ public:
         _batch = 0;
     }
 
-public:
+  public:
     BeamGraph *_bcg;
     GreedyGraph *_gcg;
     ModelParams _modelparams;  // model parameters
@@ -40,7 +40,7 @@ public:
     int _batch;
     bool _useBeam;
 
-public:
+  public:
 
     inline void initial() {
         if (!_hyperparams.bValid()) {
@@ -59,7 +59,7 @@ public:
         _gcg->initial(_modelparams, _hyperparams, &aligned_mem);
 
         std::cout << "allocated memory: " << aligned_mem.capacity << ", total required memory: " << aligned_mem.required
-            << ", perc = " << aligned_mem.capacity * 1.0 / aligned_mem.required << std::endl;
+                  << ", perc = " << aligned_mem.capacity * 1.0 / aligned_mem.required << std::endl;
 
         setUpdateParameters(_hyperparams.nnRegular, _hyperparams.adaAlpha, _hyperparams.adaEps);
         _batch = 0;
@@ -67,7 +67,7 @@ public:
     }
 
 
-public:
+  public:
     dtype train(std::vector<Instance > &sentences, const vector<vector<CAction> > &goldACs, bool nerOnly) {
         _eval.reset();
         dtype cost = 0.0;
@@ -78,14 +78,12 @@ public:
                 if (nerOnly) {
                     _eval.overall_label_count += sentences[idx].words.size();
                     cost += loss_google_beam(sentences[idx].words.size());
-                }
-                else {
+                } else {
                     _eval.overall_label_count += goldACs[idx].size();
                     cost += loss_google_beam(-1);
                 }
                 _bcg->backward();
-            }
-            else {
+            } else {
                 _gcg->forward((sentences[idx]), nerOnly, &(goldACs[idx]));
                 cost += loss_google_greedy();
                 if (_gcg->outputs.size() != goldACs[idx].size()) {
@@ -102,8 +100,7 @@ public:
     void decode(Instance &sentence, CResult &result) {
         if (_useBeam) {
             _bcg->forward(sentence, false);
-        }
-        else {
+        } else {
             _gcg->forward(sentence, false);
         }
         predict(result);
@@ -124,7 +121,7 @@ public:
 
     void loadModel();
 
-private:
+  private:
     dtype loss_google_beam(int upper_step) {
         int maxstep = _bcg->outputs.size();
         if (maxstep == 0) return 1.0;
@@ -260,18 +257,17 @@ private:
     }
 
 
-    void predict(CResult &result) {        
+    void predict(CResult &result) {
         if (_useBeam) {
             int step = _bcg->outputs.size();
             _bcg->states[step - 1][0].getResults(result, _hyperparams); //TODO:
-        }
-        else {
+        } else {
             int step = _gcg->outputs.size();
             _gcg->states[step - 1].getResults(result, _hyperparams); //TODO:
         }
     }
 
-public:
+  public:
     inline void setUpdateParameters(dtype nnRegular, dtype adaAlpha, dtype adaEps) {
         _ada._alpha = adaAlpha;
         _ada._eps = adaEps;

@@ -1,7 +1,7 @@
 #ifndef SRC_HyperParams_H_
 #define SRC_HyperParams_H_
 
-#include "N3L.h"
+#include "N3LDG.h"
 #include "Options.h"
 #include <unordered_set>
 
@@ -15,6 +15,7 @@ struct HyperParams {
     int action_num;
     dtype delta;
     int beam;
+    int batch;
 
     dtype nnRegular; // for optimization
     dtype adaAlpha;  // for optimization
@@ -25,7 +26,7 @@ struct HyperParams {
     int word_dim;
     int word_ext_dim;
     int tag_dim;
-    int action_dim;
+    int ner_dim;
 
     int char_context;
     int char_represent_dim;
@@ -34,19 +35,17 @@ struct HyperParams {
     int word_context;
     int word_represent_dim;
 
-    int word_hidden1_dim;
-    int action_hidden_dim;
+    int word_hidden_dim;
 
     int word_lstm_dim;
-    int action_lstm_dim;
+    int ner_lstm_dim;
 
-    int word_hidden2_dim;
 
     int ner_state_concat_dim;
     int rel_state_concat_dim;
     int state_hidden_dim;
 
-public:
+  public:
     HyperParams() {
         beam = 1; // TODO:
         maxlength = max_step_size;
@@ -59,9 +58,10 @@ public:
         beam = opt.beam;
         delta = opt.delta;
         bAssigned = true;
+        batch = opt.batchSize;
 
 
-        ner_noprefix_num = (ner_labels.size() - 1) / 4;
+        //ner_noprefix_num = (ner_labels.size() - 1) / 4;
 
         nnRegular = opt.regParameter;
         adaAlpha = opt.adaAlpha;
@@ -72,7 +72,7 @@ public:
         word_dim = opt.wordEmbSize;
         word_ext_dim = opt.wordExtEmbSize;
         tag_dim = opt.tagEmbSize;
-        action_dim = opt.actionEmbSize;
+        ner_dim = opt.nerEmbSize;
 
         char_context = opt.charContext;
         char_represent_dim = (2 * char_context + 1) * char_dim;
@@ -80,17 +80,14 @@ public:
 
         word_context = opt.wordContext;
         word_represent_dim = word_dim + word_ext_dim + tag_dim + char_hidden_dim;
-        word_hidden1_dim = opt.wordHidden1Size;
+        word_hidden_dim = opt.wordHiddenSize;
         word_lstm_dim = opt.wordRNNHiddenSize;
-        word_hidden2_dim = opt.wordHidden2Size;
-        
 
-        action_hidden_dim = opt.actionHiddenSize;       
-        action_lstm_dim = opt.actionRNNHiddenSize;
+        ner_lstm_dim = opt.nerRNNHiddenSize;
 
-        ner_state_concat_dim = action_lstm_dim + (2 * word_context + 1) * word_hidden2_dim;
+        ner_state_concat_dim = 2 * ner_lstm_dim + 2 * word_lstm_dim + 2 * word_lstm_dim;
         //rel_state_concat_dim = 10 * tree_lstm_dim;
-        rel_state_concat_dim = 10 * word_lstm_dim;
+        rel_state_concat_dim = 10 * word_lstm_dim + 2 * ner_lstm_dim;
 
         state_hidden_dim = opt.state_hidden_dim; //TODO:
 
@@ -105,13 +102,13 @@ public:
     }
 
 
-public:
+  public:
 
     void print() {
 
     }
 
-private:
+  private:
     bool bAssigned;
 };
 

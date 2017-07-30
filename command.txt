@@ -1,5 +1,7 @@
 cmake .. -DEIGEN3_DIR=/d/eigen/ -DN3L_DIR=/d/N3LDG/
 
+nohup ./CombinedExtractor1 -l -train data/train.re -dev data/dev.re -test data/test.re -option option.ace05.b1 -mem 4 -th 1 > ace.b1.newlog 2>&1 &
+
 
 -l -train E:\experiments\ACL2017\yue\experiment-debug\data\train.re -dev E:\experiments\ACL2017\yue\experiment-debug\data\train.re -test E:\experiments\ACL2017\yue\experiment-debug\data\test.re -option E:\experiments\ACL2017\yue\experiment-debug\option.debug
 -l -train E:\experiments\ACL2017\yue\experiment-debug\data\train.re -dev E:\experiments\ACL2017\yue\experiment-debug\data\dev.re -test E:\experiments\ACL2017\yue\experiment-debug\data\test.re -option E:\experiments\ACL2017\yue\experiment-debug\option.debug

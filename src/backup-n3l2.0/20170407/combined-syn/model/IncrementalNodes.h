@@ -4,12 +4,12 @@
 #include "ModelParams.h"
 
 struct IncrementalNodes {
-	IncLSTM1Builder* word_lstm;
+    IncLSTM1Builder* word_lstm;
 
-public:
-	IncrementalNodes() : word_lstm(NULL) {
+  public:
+    IncrementalNodes() : word_lstm(NULL) {
 
-	}
+    }
 
 };
 

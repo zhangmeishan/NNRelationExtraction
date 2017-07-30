@@ -6,7 +6,7 @@
 // Each model consists of two parts, building neural graph and defining output losses.
 class ModelParams {
 
-public:
+  public:
     //neural parameters
     Alphabet embeded_chars; // chars
     LookupTable char_table; // should be initialized outside
@@ -20,7 +20,7 @@ public:
     LookupTable action_table; // should be initialized outside
     Alphabet embeded_ners;
     LookupTable ner_table; // should be initialized outside
-    
+
     UniParams char_tanh_conv;
 
     UniParams word_tanh_conv1;
@@ -39,9 +39,9 @@ public:
 
     UniParams ner_state_hidden;
     UniParams rel_state_hidden;
-    LookupTable scored_action_table; 
+    LookupTable scored_action_table;
 
-public:
+  public:
     bool initial(HyperParams &opts, AlignedMemoryPool *mem) {
         char_tanh_conv.initial(opts.char_hidden_dim, opts.char_represent_dim, true, mem);
 
@@ -56,7 +56,7 @@ public:
 
         action_conv.initial(opts.action_hidden_dim, opts.action_dim, opts.action_dim, true, mem);
         action_lstm.initial(opts.action_lstm_dim, opts.action_hidden_dim, mem);
-      
+
         ner_state_hidden.initial(opts.state_hidden_dim, opts.ner_state_concat_dim, true, mem);
         rel_state_hidden.initial(opts.state_hidden_dim, opts.rel_state_concat_dim, true, mem);
         scored_action_table.initial(&embeded_actions, opts.state_hidden_dim, true);
